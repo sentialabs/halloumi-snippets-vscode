@@ -1,0 +1,31 @@
+{
+    "name": "halloumi-snippets",
+    "displayName": "halloumi-snippets",
+    "description": "Code snippets for the Halloumi DSL",
+    "version": "0.2.0",
+    "publisher": "wessel-van-heerde",
+    "engines": {
+        "vscode": "^1.30.0"
+    },
+    "categories": [
+        "Snippets"
+    ],
+    "contributes": {
+        "snippets": [
+            {
+                "language": "ruby",
+                "path": "./snippets/snippets.json"
+            }
+        ]
+    },
+    "scripts": {
+        "update-snippets": "tsc update-snippets.ts && node update-snippets.js && rm update-snippets.js"
+    },
+    "dependencies": {
+        "change-case": "^3.1.0",
+        "node-fetch": "^2.3.0"
+    },
+    "devDependencies": {
+        "@types/node": "^10.12.18"
+    }
+}
