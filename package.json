@@ -2,11 +2,13 @@
     "name": "halloumi-snippets",
     "displayName": "halloumi-snippets",
     "description": "Code snippets for the Halloumi DSL",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "publisher": "wessel-van-heerde",
     "engines": {
         "vscode": "^1.30.0"
     },
+    "icon": "halloumi-snippets-icon.png",
+    "repository": "https://github.com/sentialabs/halloumi-snippets-vscode",
     "categories": [
         "Snippets"
     ],

@@ -31,6 +31,15 @@ This extension does not contribute any additional settings
 * Added VirtualResource
 * Added support for `output` 
 
+### 0.3.0
+
+* Reformatted the way resource snippets are generated
+* Add property type support
+* Fix update type description
+* Add additional whiteline after resource for easy adding additional resources
+* Fix bug with not showing properties
+* Add icon to package
+
 ## Development
 
 To contribute:

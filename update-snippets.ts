@@ -9,10 +9,61 @@ let generatedSnippets = {};
 function generatePropertyComments(propertyData) {
     let propertyComments = [];
 
-    if (propertyData['DuplicatesAllowed'] == true) { propertyComments.push("Can have duplicates") }
     if (propertyData['UpdateType'] == "Immutable") { propertyComments.push("Change triggers replacement") }
+    if (propertyData['UpdateType'] == "Conditional") { propertyComments.push("Change might trigger replacement") }
 
     return propertyComments;
+}
+
+function generatePrimitiveDataTypeExample(primitiveType) {
+    let snippet = "";
+
+    if (primitiveType == "String" ) { 
+        snippet = "\"string\"";
+    } else if (primitiveType == "Long" ) { 
+        snippet = "long";
+    } else if (primitiveType == "Integer" ) { 
+        snippet = "integer";
+    } else if (primitiveType == "Double" ) { 
+        snippet = "double";
+    } else if (primitiveType == "Boolean" ) { 
+        snippet = "true|false";
+    } else if (primitiveType == "Timestamp" ) { 
+        snippet = "\"YYYYMMDD'T'HHMMSS\"";
+    } else if (primitiveType == "Json" ) { 
+        snippet = "json";
+    }
+
+    return snippet;
+}
+
+function generatePropertyDataType(propertyData) {
+    let dataType = "{ ... }";
+    let s = "";
+    
+    if (propertyData["PrimitiveType"]) {
+        dataType = `{ ${generatePrimitiveDataTypeExample(propertyData["PrimitiveType"])} }`;
+    } else if (propertyData["Type"]) {
+        if (propertyData["Type"] == "List" ) {
+            if (propertyData["PrimitiveItemType"]) {
+                s = generatePrimitiveDataTypeExample(propertyData["PrimitiveItemType"]);
+            } else if (propertyData["ItemType"]) {
+                s = propertyData["ItemType"];
+            }
+            dataType = `do\n\t\t[\n\t\t\t${s},\n\t\t\t${s},\n\t\t\t...\n\t\t]\n\tend`;
+        } else if (propertyData["Type"] == "Map" ) { 
+            if (propertyData["PrimitiveItemType"]) {
+                s = generatePrimitiveDataTypeExample(propertyData["PrimitiveItemType"]);
+            } else if (propertyData["ItemType"]) {
+                s = propertyData["ItemType"];
+            }
+            dataType = `do\n\t\t{\n\t\t\t${s}: ${s},\n\t\t\t${s}: ${s},\n\t\t\t...\n\t\t}\n\tend`;
+        } else {
+            dataType = `{ ${propertyData["Type"]} }`;
+        }
+    }
+
+    return dataType;
 }
 
 // Add snippet for Halloumi environment property
@@ -22,7 +73,8 @@ generatedSnippets["Halloumi_environment_property"] = {
         "property :property_name,",
         "         env: :ENVIRONMENT_VARIABLE_NAME,",
         "         required: true,",
-        "         default: \"<default value>\""
+        "         filter: :optional_filter,",
+        "         default: \"<default value>\"\n"
     ],
     "description": `An Halloumi property using a value from your .env.* files`
 }
@@ -37,7 +89,7 @@ generatedSnippets["Halloumi_template_property"] = {
         "           \"<relative path to template>\"",
         "           __FILE__",
         "         ),",
-        "         required: true",
+        "         required: true\n",
     ],
     "description": `An Halloumi property using a template to load it's value`
 }
@@ -45,7 +97,7 @@ generatedSnippets["Halloumi_template_property"] = {
 // Add snippet for output
 generatedSnippets["Halloumi_output"] = {
     "prefix": "Halloumi output",
-    "body": ["output(:resource_name, :output_name) { |r| ... }"],
+    "body": ["output(:resource_name, :output_name) { |r| ... }\n"],
     "description": `An Halloumi resource output`
 }
 
@@ -61,7 +113,7 @@ generatedSnippets["Halloumi_VirtualResource"] = {
         "\tr.parameter { ... } # to be able to +Ref+ the value of a CloudFormation template parameter",
         "\tr.ref { ... } # to be able to imitate referencing a resource ",
         "\tr.property { ... } # to define properties on the virtual resource",
-        "end"
+        "end\n"
     ],
     "description": `An Halloumi virtual resource`
 }
@@ -73,15 +125,13 @@ nodeFetch(cfDefinitionSource)
             let snippetBody = [];
             let pIndex = 0;
 
-            snippetBody.push("# @!attribute [rw] " + changeCase.snakeCase(resourceType) + "s");
-            snippetBody.push("# @return [Array<Halloumi::" + resourceType + ">] " + changeCase.snakeCase(resourceType) + "s");
             snippetBody.push("# @see: " + json['ResourceTypes'][resourceType]["Documentation"]);
             snippetBody.push("resource :" + changeCase.snakeCase(resourceType) + "s,");
             snippetBody.push("         type: Halloumi::" + resourceType + ",");
             snippetBody.push("         amount: -> { amount } do |r|\n");
 
             let requiredProperties = {};
-            let otherProperties = {};
+            let optionalProperties = {};
 
             for (let resourceParameter in json['ResourceTypes'][resourceType]['Properties']) {
                 let propertyData = json['ResourceTypes'][resourceType]['Properties'][resourceParameter];
@@ -89,7 +139,7 @@ nodeFetch(cfDefinitionSource)
                 if (propertyData['Required'] === true) {
                     requiredProperties[resourceParameter] = propertyData;
                 } else {
-                    otherProperties[resourceParameter] = propertyData;
+                    optionalProperties[resourceParameter] = propertyData;
                 }
             }
 
@@ -98,7 +148,8 @@ nodeFetch(cfDefinitionSource)
 
                 for (let resourceParameter in requiredProperties) {
                     let c = generatePropertyComments(requiredProperties[resourceParameter]);
-                    let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() + ") { ... }"
+                    let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() +
+                        ") " + generatePropertyDataType(requiredProperties[resourceParameter])
                     
                     if (c.length > 0) { s += ` # ${c.join(' / ')}` }
                     snippetBody.push(s);
@@ -107,18 +158,19 @@ nodeFetch(cfDefinitionSource)
                 snippetBody.push("")
             }
 
-            if (Object.keys(requiredProperties).length > 0) {
-                snippetBody.push("\t# Other properties")
+            if (Object.keys(optionalProperties).length > 0) {
+                snippetBody.push("\t# Optional properties")
 
-                for (let resourceParameter in otherProperties) {
-                    let c = generatePropertyComments(otherProperties[resourceParameter]);
-                    let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() + ") { ... }"
+                for (let resourceParameter in optionalProperties) {
+                    let c = generatePropertyComments(optionalProperties[resourceParameter]);
+                    let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() +
+                        ") " + generatePropertyDataType(optionalProperties[resourceParameter])
                     
                     if (c.length > 0) { s += ` # ${c.join(' / ')}` }
                     snippetBody.push(s);
                 }
             }
-            snippetBody.push("end")
+            snippetBody.push("end\n\n");
 
             generatedSnippets[`Halloumi_${resourceType}`] = {
                 "prefix": resourceType.replace('AWS::', ''),
