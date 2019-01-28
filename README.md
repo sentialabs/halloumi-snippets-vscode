@@ -40,6 +40,12 @@ This extension does not contribute any additional settings
 * Fix bug with not showing properties
 * Add icon to package
 
+### 0.4.0
+
+* Add snippet generation for non-primitive types
+* Recurse on nested properties
+* Limit snippets for lists to 1 example
+
 ## Development
 
 To contribute:

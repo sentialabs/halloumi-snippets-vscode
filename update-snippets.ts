@@ -3,8 +3,14 @@ const fs = require('fs');
 const changeCase = require('change-case');
 
 const cfDefinitionSource = "https://d3teyb21fexa9r.cloudfront.net/latest/gzip/CloudFormationResourceSpecification.json";
+const recursionLimit = 10;
 
 let generatedSnippets = {};
+let nonPrimitiveResourceTypes = {};
+
+function charRepeat(repeat, char) {
+    return new Array(repeat + 1).join(char);
+}
 
 function generatePropertyComments(propertyData) {
     let propertyComments = [];
@@ -23,7 +29,7 @@ function generatePrimitiveDataTypeExample(primitiveType) {
     } else if (primitiveType == "Long" ) { 
         snippet = "long";
     } else if (primitiveType == "Integer" ) { 
-        snippet = "integer";
+        snippet = "int";
     } else if (primitiveType == "Double" ) { 
         snippet = "double";
     } else if (primitiveType == "Boolean" ) { 
@@ -37,29 +43,71 @@ function generatePrimitiveDataTypeExample(primitiveType) {
     return snippet;
 }
 
-function generatePropertyDataType(propertyData) {
+function generateNonPrimitiveDataTypeExample(nonPrimitiveType, resourceType, depth) {
+    let k = `${resourceType}.${nonPrimitiveType}`;
+    if (nonPrimitiveType == "Tag") { k = nonPrimitiveType }
+    let snippet = nonPrimitiveType;
+    
+    if (depth >= recursionLimit) { return snippet; }
+
+    if (!(k in nonPrimitiveResourceTypes)) { return snippet; }
+
+    let snippets = [];
+    let s = "";
+
+    for (let npPropertyTypeProperty in nonPrimitiveResourceTypes[k]['Properties']) {
+        s = generatePropertyDataType(
+            nonPrimitiveResourceTypes[k]['Properties'][npPropertyTypeProperty],
+            resourceType,
+            (depth+1) // Increment depth to 1 to avoid undesired recursion
+        );
+        snippets.push(`${charRepeat(depth+3, "\t")}${npPropertyTypeProperty}: ${s}`);
+    }
+
+    return snippets.join(",\n");
+}
+
+function generatePropertyDataType(propertyData, resourceType, depth) {
     let dataType = "{ ... }";
     let s = "";
     
     if (propertyData["PrimitiveType"]) {
-        dataType = `{ ${generatePrimitiveDataTypeExample(propertyData["PrimitiveType"])} }`;
+        if (depth == 0) {
+            dataType = `{ ${generatePrimitiveDataTypeExample(propertyData["PrimitiveType"])} }`;
+        } else {
+            dataType = generatePrimitiveDataTypeExample(propertyData["PrimitiveType"]);
+        }
     } else if (propertyData["Type"]) {
         if (propertyData["Type"] == "List" ) {
             if (propertyData["PrimitiveItemType"]) {
                 s = generatePrimitiveDataTypeExample(propertyData["PrimitiveItemType"]);
             } else if (propertyData["ItemType"]) {
-                s = propertyData["ItemType"];
+                s = `{\n${generateNonPrimitiveDataTypeExample(propertyData["ItemType"], resourceType, depth+1)}\n${charRepeat(depth+3, "\t")}}`;
             }
-            dataType = `do\n\t\t[\n\t\t\t${s},\n\t\t\t${s},\n\t\t\t...\n\t\t]\n\tend`;
+
+            if (depth == 0) {
+                dataType = `do\n\t\t[\n\t\t\t${s},\n\t\t\t...\n\t\t]\n\tend`;
+            } else {
+                dataType = `[\n${charRepeat(depth+3, "\t")}${s},\n${charRepeat(depth+3, "\t")}...\n${charRepeat(depth+2, "\t")}]`;
+            }
         } else if (propertyData["Type"] == "Map" ) { 
             if (propertyData["PrimitiveItemType"]) {
                 s = generatePrimitiveDataTypeExample(propertyData["PrimitiveItemType"]);
             } else if (propertyData["ItemType"]) {
-                s = propertyData["ItemType"];
+                s = `{\n${generateNonPrimitiveDataTypeExample(propertyData["ItemType"], resourceType, depth)}\n}\n`;
             }
-            dataType = `do\n\t\t{\n\t\t\t${s}: ${s},\n\t\t\t${s}: ${s},\n\t\t\t...\n\t\t}\n\tend`;
+
+            if (depth == 0) {
+                dataType = `do\n\t\t{\n\t\t\t${s}: ${s},\n\t\t\t${s}: ${s}\n\t\t}\n\tend`;
+            } else {
+                dataType = `${charRepeat(depth+3, "\t")}{\n${charRepeat(depth+3, "\t")}${s}: ${s},\n${charRepeat(depth+3, "\t")}${s}: ${s},\n${charRepeat(depth+3, "\t")}...\n${charRepeat(depth+2, "\t")}}`;
+            }
         } else {
-            dataType = `{ ${propertyData["Type"]} }`;
+            if (depth == 0) {
+                dataType = `do\n\t\t{\n${generateNonPrimitiveDataTypeExample(propertyData["Type"], resourceType, depth)}\n\t\t}\n\tend`;
+            } else {
+                dataType = `{\n${generateNonPrimitiveDataTypeExample(propertyData["Type"], resourceType, depth)}\n${charRepeat(depth+2, "\t")}}`;
+            }
         }
     }
 
@@ -121,9 +169,10 @@ generatedSnippets["Halloumi_VirtualResource"] = {
 nodeFetch(cfDefinitionSource)
     .then(res => res.json())
     .then(json =>{
+        nonPrimitiveResourceTypes = json['PropertyTypes'];
+
         for (let resourceType in json['ResourceTypes']) {
             let snippetBody = [];
-            let pIndex = 0;
 
             snippetBody.push("# @see: " + json['ResourceTypes'][resourceType]["Documentation"]);
             snippetBody.push("resource :" + changeCase.snakeCase(resourceType) + "s,");
@@ -149,7 +198,7 @@ nodeFetch(cfDefinitionSource)
                 for (let resourceParameter in requiredProperties) {
                     let c = generatePropertyComments(requiredProperties[resourceParameter]);
                     let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() +
-                        ") " + generatePropertyDataType(requiredProperties[resourceParameter])
+                        ") " + generatePropertyDataType(requiredProperties[resourceParameter], resourceType, 0)
                     
                     if (c.length > 0) { s += ` # ${c.join(' / ')}` }
                     snippetBody.push(s);
@@ -164,7 +213,7 @@ nodeFetch(cfDefinitionSource)
                 for (let resourceParameter in optionalProperties) {
                     let c = generatePropertyComments(optionalProperties[resourceParameter]);
                     let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() +
-                        ") " + generatePropertyDataType(optionalProperties[resourceParameter])
+                        ") " + generatePropertyDataType(optionalProperties[resourceParameter], resourceType, 0)
                     
                     if (c.length > 0) { s += ` # ${c.join(' / ')}` }
                     snippetBody.push(s);
