@@ -46,6 +46,10 @@ This extension does not contribute any additional settings
 * Recurse on nested properties
 * Limit snippets for lists to 1 example
 
+### 0.5.0
+
+* Updated snippets from latest specification (2.22.0)
+
 ## Development
 
 To contribute:
