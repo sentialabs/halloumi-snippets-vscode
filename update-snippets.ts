@@ -24,19 +24,19 @@ function generatePropertyComments(propertyData) {
 function generatePrimitiveDataTypeExample(primitiveType) {
     let snippet = "";
 
-    if (primitiveType == "String" ) { 
+    if (primitiveType == "String" ) {
         snippet = "\"string\"";
-    } else if (primitiveType == "Long" ) { 
+    } else if (primitiveType == "Long" ) {
         snippet = "long";
-    } else if (primitiveType == "Integer" ) { 
+    } else if (primitiveType == "Integer" ) {
         snippet = "int";
-    } else if (primitiveType == "Double" ) { 
+    } else if (primitiveType == "Double" ) {
         snippet = "double";
-    } else if (primitiveType == "Boolean" ) { 
+    } else if (primitiveType == "Boolean" ) {
         snippet = "true|false";
-    } else if (primitiveType == "Timestamp" ) { 
+    } else if (primitiveType == "Timestamp" ) {
         snippet = "\"YYYYMMDD'T'HHMMSS\"";
-    } else if (primitiveType == "Json" ) { 
+    } else if (primitiveType == "Json" ) {
         snippet = "json";
     }
 
@@ -47,7 +47,7 @@ function generateNonPrimitiveDataTypeExample(nonPrimitiveType, resourceType, dep
     let k = `${resourceType}.${nonPrimitiveType}`;
     if (nonPrimitiveType == "Tag") { k = nonPrimitiveType }
     let snippet = nonPrimitiveType;
-    
+
     if (depth >= recursionLimit) { return snippet; }
 
     if (!(k in nonPrimitiveResourceTypes)) { return snippet; }
@@ -70,7 +70,7 @@ function generateNonPrimitiveDataTypeExample(nonPrimitiveType, resourceType, dep
 function generatePropertyDataType(propertyData, resourceType, depth) {
     let dataType = "{ ... }";
     let s = "";
-    
+
     if (propertyData["PrimitiveType"]) {
         if (depth == 0) {
             dataType = `{ ${generatePrimitiveDataTypeExample(propertyData["PrimitiveType"])} }`;
@@ -90,7 +90,7 @@ function generatePropertyDataType(propertyData, resourceType, depth) {
             } else {
                 dataType = `[\n${charRepeat(depth+3, "\t")}${s},\n${charRepeat(depth+3, "\t")}...\n${charRepeat(depth+2, "\t")}]`;
             }
-        } else if (propertyData["Type"] == "Map" ) { 
+        } else if (propertyData["Type"] == "Map" ) {
             if (propertyData["PrimitiveItemType"]) {
                 s = generatePrimitiveDataTypeExample(propertyData["PrimitiveItemType"]);
             } else if (propertyData["ItemType"]) {
@@ -199,7 +199,7 @@ nodeFetch(cfDefinitionSource)
                     let c = generatePropertyComments(requiredProperties[resourceParameter]);
                     let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() +
                         ") " + generatePropertyDataType(requiredProperties[resourceParameter], resourceType, 0)
-                    
+
                     if (c.length > 0) { s += ` # ${c.join(' / ')}` }
                     snippetBody.push(s);
                 }
@@ -214,7 +214,7 @@ nodeFetch(cfDefinitionSource)
                     let c = generatePropertyComments(optionalProperties[resourceParameter]);
                     let s = "\tr.property(:" + changeCase.snakeCase(resourceParameter).toLowerCase() +
                         ") " + generatePropertyDataType(optionalProperties[resourceParameter], resourceType, 0)
-                    
+
                     if (c.length > 0) { s += ` # ${c.join(' / ')}` }
                     snippetBody.push(s);
                 }

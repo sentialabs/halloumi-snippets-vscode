@@ -29,7 +29,7 @@ This extension does not contribute any additional settings
 * Reformatted the way resource snippets are generated
 * Grouped required properties away from the non-required properties
 * Added VirtualResource
-* Added support for `output` 
+* Added support for `output`
 
 ### 0.3.0
 
@@ -50,6 +50,10 @@ This extension does not contribute any additional settings
 
 * Updated snippets from latest specification (2.22.0)
 
+### 0.6.0
+
+* Updated snippets from latest specification (2.29.0)
+
 ## Development
 
 To contribute:
@@ -64,3 +68,7 @@ To update snippets:
 1. Change directory into project
 2. Run `npm install`
 3. Run `npm run update-snippets`
+
+To publish a new package:
+
+1. Run `vsce publish`
