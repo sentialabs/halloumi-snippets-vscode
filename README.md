@@ -54,6 +54,11 @@ This extension does not contribute any additional settings
 
 * Updated snippets from latest specification (2.29.0)
 
+### 0.6.0
+
+* Updated snippets from latest specification (2.30.0)
+* Added additional comments on top of snippet to align with coding guidelines
+
 ## Development
 
 To contribute:

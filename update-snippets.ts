@@ -139,7 +139,7 @@ generatedSnippets["Halloumi_template_property"] = {
         "         ),",
         "         required: true\n",
     ],
-    "description": `An Halloumi property using a template to load it's value`
+    "description": `An Halloumi property using a template to load its value`
 }
 
 // Add snippet for output
@@ -174,7 +174,9 @@ nodeFetch(cfDefinitionSource)
         for (let resourceType in json['ResourceTypes']) {
             let snippetBody = [];
 
-            snippetBody.push("# @see: " + json['ResourceTypes'][resourceType]["Documentation"]);
+            snippetBody.push("# @!attribute [rw] " + changeCase.snakeCase(resourceType) + "s");
+            snippetBody.push("#\t@return [Array<Halloumi::" + resourceType + ">]")
+            snippetBody.push("#\t@see: " + json['ResourceTypes'][resourceType]["Documentation"]);
             snippetBody.push("resource :" + changeCase.snakeCase(resourceType) + "s,");
             snippetBody.push("         type: Halloumi::" + resourceType + ",");
             snippetBody.push("         amount: -> { amount } do |r|\n");
